@@ -1,0 +1,131 @@
+// Example of JWT implementation in Node.js
+const jwt = require('jsonwebtoken');
+
+function generateToken(user) {
+    return jwt.sign(
+        { id: user.id, isAdmin: user.isAdmin },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+    );
+}
+
+function verifyToken(req, res, next) {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'Access denied' });
+    
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = decoded;
+        next();
+    } catch (error) {
+        res.status(400).json({ error: 'Invalid token' });
+    }
+}
+
+app.get('/api/notifications', verifyToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const notifications = await db.query(
+            'SELECT * FROM notifications WHERE user_id = $1 OR user_id = $2 ORDER BY created_at DESC',
+            [userId, 'all']
+        );
+        res.json(notifications.rows);
+    } catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Example FCM integration
+const admin = require('firebase-admin');
+
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    databaseURL: 'https://your-project-id.firebaseio.com'
+});
+
+async function sendPushNotification(deviceToken, title, message) {
+    const payload = {
+        notification: {
+            title: title,
+            body: message,
+        },
+        data: {
+            type: 'general',
+            click_action: 'FLUTTER_NOTIFICATION_CLICK',
+        },
+    };
+
+    try {
+        const response = await admin.messaging().sendToDevice(deviceToken, payload);
+        console.log('Notification sent successfully:', response);
+    } catch (error) {
+        console.error('Error sending notification:', error);
+    }
+}
+// Using Socket.io for real-time functionality
+const io = require('socket.io')(server);
+
+io.on('connection', (socket) => {
+    console.log('User connected:', socket.id);
+    
+    socket.on('user_connected', (userId) => {
+        socket.join(userId);
+        console.log(`User ${userId} joined their room`);
+    });
+    
+    socket.on('disconnect', () => {
+        console.log('User disconnected:', socket.id);
+    });
+});
+// Function to send real-time notification
+function sendRealTimeNotification(userId, notification) {
+    io.to(userId).emit('new_notification', notification);
+}
+
+// Example using PostgreSQL with node-postgres
+const { Pool } = require('pg');
+const pool = new Pool({
+    user: process.env.DB_USER,
+    host: process.env.DB_HOST,
+    database: process.env.DB_NAME,
+    password: process.env.DB_PASSWORD,
+    port: process.env.DB_PORT,
+});
+
+async function createNotification(userId, title, message, type = 'general') {
+    const query = `
+        INSERT INTO notifications (user_id, title, message, type)
+        VALUES ($1, $2, $3, $4)
+        RETURNING *
+    `;
+    const values = [userId, title, message, type];
+    
+    try {
+        const result = await pool.query(query, values);
+        return result.rows[0];
+    } catch (error) {
+        throw new Error('Failed to create notification: ' + error.message);
+    }
+}
+// Password hashing example
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
+
+async function hashPassword(password) {
+    return await bcrypt.hash(password, saltRounds);
+}
+
+async function verifyPassword(password, hash) {
+    return await bcrypt.compare(password, hash);
+}
+// Logging middleware
+app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+    next();
+});
+
+// Error handling middleware
+app.use((error, req, res, next) => {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+});
